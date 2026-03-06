@@ -97,11 +97,11 @@ No need to edit files if you don't want to. The Settings GUI covers presets, app
 
 ### Settings in action
 
-https://github.com/user-attachments/assets/66156dbe-6521-41b0-a465-234e8558d4c6
+https://github.com/user-attachments/assets/bedb799d-f3ae-43ee-a64c-5f3034a5b422
 
 ### Switching presets
 
-https://github.com/user-attachments/assets/bedb799d-f3ae-43ee-a64c-5f3034a5b422
+https://github.com/user-attachments/assets/66156dbe-6521-41b0-a465-234e8558d4c6
 
 ## Installation
 
