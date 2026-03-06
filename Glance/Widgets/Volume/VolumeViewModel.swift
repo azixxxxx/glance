@@ -4,11 +4,13 @@ import Foundation
 final class VolumeViewModel: ObservableObject {
     @Published var volume: Float = 0.0
     @Published var isMuted: Bool = false
+    @Published var outputDeviceName: String = ""
 
     private var timer: Timer?
 
     init() {
         updateVolume()
+        updateOutputDeviceName()
         startMonitoring()
     }
 
@@ -20,6 +22,7 @@ final class VolumeViewModel: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
             [weak self] _ in
             self?.updateVolume()
+            self?.updateOutputDeviceName()
         }
     }
 
@@ -128,5 +131,44 @@ final class VolumeViewModel: ObservableObject {
 
     var volumePercent: Int {
         Int(round(volume * 100))
+    }
+
+    func updateOutputDeviceName() {
+        guard let deviceID = getDefaultOutputDevice() else { return }
+
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(deviceID, &address, 0, nil, &size) == noErr else { return }
+
+        var name: Unmanaged<CFString>?
+        let status = withUnsafeMutablePointer(to: &name) { ptr in
+            AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, ptr)
+        }
+        if status == noErr, let cfName = name?.takeUnretainedValue() {
+            let deviceName = cfName as String
+            DispatchQueue.main.async {
+                self.outputDeviceName = deviceName
+            }
+        }
+    }
+
+    var outputDeviceIcon: String {
+        let lower = outputDeviceName.lowercased()
+        if lower.contains("airpods") {
+            return "airpodspro"
+        } else if lower.contains("headphone") || lower.contains("headset") {
+            return "headphones"
+        } else if lower.contains("bluetooth") || lower.contains("beats") {
+            return "hifispeaker"
+        } else if lower.contains("display") || lower.contains("hdmi") || lower.contains("tv") {
+            return "tv"
+        } else {
+            return "hifispeaker.2"
+        }
     }
 }

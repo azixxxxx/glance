@@ -19,8 +19,15 @@ struct AppearanceConfig {
     let popupDarkTint: CGFloat
     let popupRoundness: CGFloat
 
+    // Colors
+    let foregroundColor: Color
+    let accentColor: Color
+    let borderColor: Color
+    let borderColor2: Color?        // Non-nil = gradient border
+    let widgetBackgroundColor: Color
+    let glowColor: Color
+
     /// Maps roundness (0-50) to a concrete cornerRadius for widget capsules.
-    /// 50 = height/2 = full capsule shape.
     func resolvedWidgetCornerRadius(height: CGFloat = 38) -> CGFloat {
         let clamped = min(max(roundness, 0), 50)
         let maxRadius = height / 2
@@ -35,6 +42,11 @@ struct AppearanceConfig {
     /// Creates a copy with user overrides applied.
     func applying(overrides: AppearanceOverrides?) -> AppearanceConfig {
         guard let o = overrides else { return self }
+
+        // Parse neon custom colors
+        let customColor1 = o.neonColor.flatMap { Self.parseHex($0) }
+        let customColor2 = o.neonColor2.flatMap { Self.parseHex($0) }
+
         return AppearanceConfig(
             renderingStyle: renderingStyle,
             roundness: o.roundness ?? roundness,
@@ -50,7 +62,28 @@ struct AppearanceConfig {
             shadowY: shadowY,
             blurMaterial: blurMaterial,
             popupDarkTint: popupDarkTint,
-            popupRoundness: popupRoundness
+            popupRoundness: popupRoundness,
+            foregroundColor: foregroundColor,
+            accentColor: customColor1 ?? accentColor,
+            borderColor: customColor1 ?? borderColor,
+            borderColor2: customColor2 ?? borderColor2,
+            widgetBackgroundColor: widgetBackgroundColor,
+            glowColor: customColor1 ?? glowColor
+        )
+    }
+
+    // MARK: - Hex parsing
+
+    static func parseHex(_ hex: String) -> Color? {
+        let h = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard h.count == 6 else { return nil }
+        let scanner = Scanner(string: h)
+        var rgb: UInt64 = 0
+        guard scanner.scanHexInt64(&rgb) else { return nil }
+        return Color(
+            red: Double((rgb >> 16) & 0xFF) / 255,
+            green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255
         )
     }
 }
@@ -65,6 +98,8 @@ struct AppearanceOverrides: Decodable {
     let glowOpacity: CGFloat?
     let shadowOpacity: CGFloat?
     let shadowRadius: CGFloat?
+    let neonColor: String?
+    let neonColor2: String?
 
     enum CodingKeys: String, CodingKey {
         case roundness
@@ -74,5 +109,7 @@ struct AppearanceOverrides: Decodable {
         case glowOpacity = "glow-opacity"
         case shadowOpacity = "shadow-opacity"
         case shadowRadius = "shadow-radius"
+        case neonColor = "neon-color"
+        case neonColor2 = "neon-color2"
     }
 }

@@ -4,17 +4,8 @@ struct MenuBarView: View {
     @ObservedObject var configManager = ConfigManager.shared
 
     var body: some View {
-        let theme: ColorScheme? =
-            switch configManager.config.rootToml.theme {
-            case "dark":
-                .dark
-            case "light":
-                .light
-            default:
-                .none
-            }
-
         let items = configManager.config.rootToml.widgets.displayed
+        let appearance = configManager.config.appearance
 
         HStack(spacing: 0) {
             HStack(spacing: configManager.config.experimental.foreground.spacing) {
@@ -28,14 +19,23 @@ struct MenuBarView: View {
                 SystemBannerWidget(withLeftPadding: true)
             }
         }
-        .foregroundStyle(Color.foregroundOutside)
+        .foregroundStyle(appearance.foregroundColor)
         .frame(height: max(configManager.config.experimental.foreground.resolveHeight(), 1.0))
         .frame(maxWidth: .infinity)
         .padding(.horizontal, configManager.config.experimental.foreground.horizontalPadding)
         .background(.black.opacity(0.001))
+        .contextMenu {
+            Button("Settings...") {
+                SettingsWindowController.shared.showSettings()
+            }
+            Divider()
+            Button("Quit Glance") {
+                NSApplication.shared.terminate(nil)
+            }
+        }
         .environment(\.barStyle, configManager.config.barStyle)
-        .environment(\.appearance, configManager.config.appearance)
-        .preferredColorScheme(theme)
+        .environment(\.appearance, appearance)
+        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder
@@ -56,7 +56,7 @@ struct MenuBarView: View {
         case "default.time":
             TimeWidget(calendarManager: CalendarManager(configProvider: config))
                 .environmentObject(config)
-            
+
         case "default.nowplaying":
             NowPlayingWidget()
                 .environmentObject(config)
@@ -72,7 +72,7 @@ struct MenuBarView: View {
 
         case "divider":
             Rectangle()
-                .fill(Color.active)
+                .fill(configManager.config.appearance.accentColor.opacity(0.4))
                 .frame(width: 2, height: 15)
                 .clipShape(Capsule())
 

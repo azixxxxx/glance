@@ -32,7 +32,7 @@ final class AppUpdater: ObservableObject {
         let versionWithoutPrefix =
             version.hasPrefix("v") ? String(version.dropFirst()) : version
         let urlString =
-            "https://github.com/azimsukhanov/glance/releases/download/\(version)/glance-v\(versionWithoutPrefix).zip"
+            "https://github.com/azixxxxx/glance/releases/download/\(version)/glance-v\(versionWithoutPrefix).zip"
         return URL(string: urlString)
     }
 
@@ -41,7 +41,7 @@ final class AppUpdater: ObservableObject {
         guard
             let url = URL(
                 string:
-                    "https://api.github.com/repos/azimsukhanov/glance/releases/latest"
+                    "https://api.github.com/repos/azixxxxx/glance/releases/latest"
             )
         else { return }
         URLSession.shared.dataTask(with: url) { [weak self] data, _, error in

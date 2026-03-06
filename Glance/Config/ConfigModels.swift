@@ -46,10 +46,6 @@ struct Config {
         self.rootToml = rootToml
     }
 
-    var theme: String {
-        rootToml.theme ?? "light"
-    }
-
     var appearance: AppearanceConfig {
         let base: Preset
         if let presetName = rootToml.preset,

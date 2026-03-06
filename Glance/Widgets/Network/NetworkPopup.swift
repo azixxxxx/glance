@@ -1,136 +1,171 @@
 import SwiftUI
 
-/// Window displaying detailed network status information.
 struct NetworkPopup: View {
     @StateObject private var viewModel = NetworkStatusViewModel()
+    @ObservedObject var configManager = ConfigManager.shared
+    var appearance: AppearanceConfig { configManager.config.appearance }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             if viewModel.wifiState != .notSupported {
-                HStack(spacing: 8) {
-                    wifiIcon
+                // Wi-Fi header: SSID + band badge
+                HStack(spacing: 10) {
+                    Image(systemName: wifiIconName)
+                        .font(.system(size: 14))
+                        .foregroundStyle(wifiStatusColor)
                     Text(viewModel.ssid)
-                        .foregroundColor(.white)
                         .font(.headline)
-                }
-
-                if viewModel.ssid != "Not connected"
-                    && viewModel.ssid != "No interface"
-                {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(
-                            "Signal strength: \(viewModel.wifiSignalStrength.rawValue)"
-                        )
-                        Text("RSSI: \(viewModel.rssi)")
-                        Text("Noise: \(viewModel.noise)")
-                        Text("Channel: \(viewModel.channel)")
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                    Spacer()
+                    if !viewModel.bandLabel.isEmpty
+                        && viewModel.ssid != "Not connected"
+                        && viewModel.ssid != "No interface"
+                    {
+                        Text(viewModel.bandLabel)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(appearance.accentColor.opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
-                    .font(.subheadline)
+                }
+
+                if viewModel.ssid != "Not connected" && viewModel.ssid != "No interface" {
+                    // Signal strength visual
+                    HStack(spacing: 8) {
+                        SignalBarsView(
+                            bars: viewModel.wifiSignalStrength.signalBars,
+                            accentColor: appearance.accentColor,
+                            foregroundColor: appearance.foregroundColor
+                        )
+                        Text("\(viewModel.rssi) dBm")
+                            .font(.system(size: 12, design: .monospaced))
+                            .opacity(0.5)
+                        Spacer()
+                        Text(viewModel.wifiSignalStrength.qualityLabel)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(wifiStatusColor)
+                    }
+
+                    // Live speed
+                    HStack(spacing: 0) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.down")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(appearance.accentColor)
+                            Text(NetworkStatusViewModel.formatSpeed(viewModel.downloadSpeed))
+                                .font(.system(size: 12, design: .monospaced))
+                        }
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(appearance.accentColor)
+                            Text(NetworkStatusViewModel.formatSpeed(viewModel.uploadSpeed))
+                                .font(.system(size: 12, design: .monospaced))
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
+                    .background(appearance.foregroundColor.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                    // Details table
+                    Divider().opacity(0.15)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        detailRow("IP", viewModel.localIP)
+                        detailRow("Channel", viewModel.channel)
+                        if viewModel.txRate > 0 {
+                            detailRow("Tx Rate", "\(Int(viewModel.txRate)) Mbps")
+                        }
+                        detailRow("Noise", "\(viewModel.noise) dBm")
+                    }
+                    .font(.system(size: 12))
+                    .opacity(0.7)
                 }
             }
 
-            // Ethernet section
             if viewModel.ethernetState != .notSupported {
-                HStack(spacing: 8) {
-                    ethernetIcon
-                    Text("Ethernet: \(viewModel.ethernetState.rawValue)")
-                        .foregroundColor(.white)
+                if viewModel.wifiState != .notSupported {
+                    Divider().opacity(0.15)
+                }
+                HStack(spacing: 10) {
+                    Image(systemName: "network")
+                        .font(.system(size: 14))
+                        .foregroundStyle(ethernetStatusColor)
+                    Text("Ethernet")
                         .font(.headline)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Text(viewModel.ethernetState.rawValue)
+                        .font(.subheadline)
+                        .opacity(0.6)
                 }
             }
         }
-        .padding(25)
-        .background(Color.clear)
+        .frame(width: 240)
+        .padding(22)
     }
 
-    /// Chooses the Wi‑Fi icon based on the status and connection availability.
-    private var wifiIcon: some View {
-        if viewModel.ssid == "Not connected" {
-            return Image(systemName: "wifi.slash")
-                .padding(8)
-                .background(Color.red.opacity(0.8))
-                .clipShape(Circle())
-                .foregroundStyle(.white)
+    @ViewBuilder
+    private func detailRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .opacity(0.5)
+            Spacer()
+            Text(value)
+                .font(.system(size: 12, design: .monospaced))
         }
+    }
+
+    private var wifiIconName: String {
         switch viewModel.wifiState {
-        case .connected:
-            return Image(systemName: "wifi")
-                .padding(8)
-                .background(Color.blue.opacity(0.8))
-                .clipShape(Circle())
-                .foregroundStyle(.white)
-        case .connecting:
-            return Image(systemName: "wifi")
-                .padding(8)
-                .background(Color.yellow.opacity(0.8))
-                .clipShape(Circle())
-                .foregroundStyle(.white)
-        case .connectedWithoutInternet:
-            return Image(systemName: "wifi.exclamationmark")
-                .padding(8)
-                .background(Color.yellow.opacity(0.8))
-                .clipShape(Circle())
-                .foregroundStyle(.white)
-        case .disconnected:
-            return Image(systemName: "wifi.slash")
-                .padding(8)
-                .background(Color.gray.opacity(0.8))
-                .clipShape(Circle())
-                .foregroundStyle(.white)
-        case .disabled:
-            return Image(systemName: "wifi.slash")
-                .padding(8)
-                .background(Color.red.opacity(0.8))
-                .clipShape(Circle())
-                .foregroundStyle(.white)
-        case .notSupported:
-            return Image(systemName: "wifi.exclamationmark")
-                .padding(8)
-                .background(Color.gray.opacity(0.8))
-                .clipShape(Circle())
-                .foregroundStyle(.white)
+        case .connected: return "wifi"
+        case .connecting: return "wifi"
+        case .connectedWithoutInternet: return "wifi.exclamationmark"
+        case .disconnected, .disabled: return "wifi.slash"
+        case .notSupported: return "wifi.exclamationmark"
         }
     }
 
-    private var ethernetIcon: some View {
+    private var wifiStatusColor: Color {
+        switch viewModel.wifiState {
+        case .connected: return appearance.accentColor
+        case .connecting, .connectedWithoutInternet: return .yellow
+        case .disconnected: return appearance.foregroundColor.opacity(0.4)
+        case .disabled: return .red
+        case .notSupported: return appearance.foregroundColor.opacity(0.4)
+        }
+    }
+
+    private var ethernetStatusColor: Color {
         switch viewModel.ethernetState {
-        case .connected:
-            return Image(systemName: "network")
-                .padding(8)
-                .background(Color.blue.opacity(0.8))
-                .clipShape(Circle())
-        case .connectedWithoutInternet:
-            return Image(systemName: "network")
-                .padding(8)
-                .background(Color.yellow.opacity(0.8))
-                .clipShape(Circle())
-        case .connecting:
-            return Image(systemName: "network.slash")
-                .padding(8)
-                .background(Color.yellow.opacity(0.8))
-                .clipShape(Circle())
-        case .disconnected:
-            return Image(systemName: "network.slash")
-                .padding(8)
-                .background(Color.gray.opacity(0.8))
-                .clipShape(Circle())
-        case .disabled:
-            return Image(systemName: "network.slash")
-                .padding(8)
-                .background(Color.red.opacity(0.8))
-                .clipShape(Circle())
-        case .notSupported:
-            return Image(systemName: "questionmark.circle")
-                .padding(8)
-                .background(Color.gray.opacity(0.8))
-                .clipShape(Circle())
+        case .connected: return appearance.accentColor
+        case .connecting, .connectedWithoutInternet: return .yellow
+        case .disconnected: return .red
+        case .disabled, .notSupported: return appearance.foregroundColor.opacity(0.4)
         }
     }
 }
 
-struct NetworkPopup_Previews: PreviewProvider {
-    static var previews: some View {
-        NetworkPopup()
-            .previewLayout(.sizeThatFits)
+// MARK: - Signal Bars
+
+private struct SignalBarsView: View {
+    let bars: Int  // 0-3
+    let accentColor: Color
+    let foregroundColor: Color
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<3, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(index < bars ? accentColor : foregroundColor.opacity(0.15))
+                    .frame(width: 4, height: CGFloat(6 + index * 4))
+            }
+        }
+        .frame(height: 14, alignment: .bottom)
     }
 }

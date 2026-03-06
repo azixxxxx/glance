@@ -151,17 +151,58 @@ final class ConfigManager: ObservableObject {
                 original: currentText, key: key, newValue: newValue)
             try updatedText.write(
                 toFile: path, atomically: false, encoding: .utf8)
-            DispatchQueue.main.async {
-                self.parseConfigFile(at: path)
-            }
+            // File watcher will trigger parseConfigFile automatically
         } catch {
             print("Error updating config:", error)
         }
     }
 
+    /// Batch-update multiple config keys in a single file write.
+    func updateConfigValues(pairs: [(key: String, value: String)]) {
+        guard let path = configFilePath else {
+            print("Config file path is not set")
+            return
+        }
+        do {
+            var text = try String(contentsOfFile: path, encoding: .utf8)
+            for (key, value) in pairs {
+                text = updatedTOMLString(original: text, key: key, newValue: value)
+            }
+            try text.write(toFile: path, atomically: false, encoding: .utf8)
+        } catch {
+            print("Error batch-updating config:", error)
+        }
+    }
+
+    /// Formats a value for TOML: numbers and booleans are bare, arrays are bare, strings get quotes.
+    private func tomlFormatted(_ value: String) -> String {
+        // Booleans
+        if value == "true" || value == "false" { return value }
+        // Arrays
+        if value.hasPrefix("[") && value.hasSuffix("]") { return value }
+        // Integer
+        if Int(value) != nil { return value }
+        // Float
+        if Double(value) != nil { return value }
+        // String — wrap in quotes
+        return "\"\(value)\""
+    }
+
+    /// Count unbalanced open brackets in a string (for multi-line array detection).
+    private func unclosedBracketDepth(_ s: String) -> Int {
+        var depth = 0
+        for ch in s {
+            if ch == "[" { depth += 1 }
+            else if ch == "]" { depth -= 1 }
+        }
+        return depth
+    }
+
     private func updatedTOMLString(
         original: String, key: String, newValue: String
     ) -> String {
+        let formatted = tomlFormatted(newValue)
+
         if key.contains(".") {
             let components = key.split(separator: ".").map(String.init)
             guard components.count >= 2 else {
@@ -177,12 +218,19 @@ final class ConfigManager: ObservableObject {
             var insideTargetTable = false
             var updatedKey = false
             var foundTable = false
+            var skipBracketDepth = 0
 
             for line in lines {
+                // Skip continuation lines of a replaced multi-line value
+                if skipBracketDepth > 0 {
+                    skipBracketDepth += unclosedBracketDepth(line)
+                    continue
+                }
+
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if trimmed.hasPrefix("[") && trimmed.hasSuffix("]") {
+                if trimmed.hasPrefix("[") && !trimmed.hasPrefix("[[") && trimmed.hasSuffix("]") && !trimmed.hasSuffix("]]") {
                     if insideTargetTable && !updatedKey {
-                        newLines.append("\(actualKey) = \"\(newValue)\"")
+                        newLines.append("\(actualKey) = \(formatted)")
                         updatedKey = true
                     }
                     if trimmed == tableHeader {
@@ -199,8 +247,11 @@ final class ConfigManager: ObservableObject {
                         if line.range(of: pattern, options: .regularExpression)
                             != nil
                         {
-                            newLines.append("\(actualKey) = \"\(newValue)\"")
+                            newLines.append("\(actualKey) = \(formatted)")
                             updatedKey = true
+                            // Check if original line had unclosed brackets (multi-line value)
+                            let depth = unclosedBracketDepth(line)
+                            if depth > 0 { skipBracketDepth = depth }
                             continue
                         }
                     }
@@ -209,21 +260,28 @@ final class ConfigManager: ObservableObject {
             }
 
             if foundTable && insideTargetTable && !updatedKey {
-                newLines.append("\(actualKey) = \"\(newValue)\"")
+                newLines.append("\(actualKey) = \(formatted)")
             }
 
             if !foundTable {
                 newLines.append("")
                 newLines.append("[\(tablePath)]")
-                newLines.append("\(actualKey) = \"\(newValue)\"")
+                newLines.append("\(actualKey) = \(formatted)")
             }
             return newLines.joined(separator: "\n")
         } else {
             let lines = original.components(separatedBy: "\n")
             var newLines: [String] = []
             var updatedAtLeastOnce = false
+            var skipBracketDepth = 0
 
             for line in lines {
+                // Skip continuation lines of a replaced multi-line value
+                if skipBracketDepth > 0 {
+                    skipBracketDepth += unclosedBracketDepth(line)
+                    continue
+                }
+
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 if !trimmed.hasPrefix("#") {
                     let pattern =
@@ -231,15 +289,32 @@ final class ConfigManager: ObservableObject {
                     if line.range(of: pattern, options: .regularExpression)
                         != nil
                     {
-                        newLines.append("\(key) = \"\(newValue)\"")
+                        newLines.append("\(key) = \(formatted)")
                         updatedAtLeastOnce = true
+                        let depth = unclosedBracketDepth(line)
+                        if depth > 0 { skipBracketDepth = depth }
                         continue
                     }
                 }
                 newLines.append(line)
             }
             if !updatedAtLeastOnce {
-                newLines.append("\(key) = \"\(newValue)\"")
+                // Insert before the first [section] header so the key stays top-level
+                var inserted = false
+                var result: [String] = []
+                for line in newLines {
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    if !inserted && trimmed.hasPrefix("[") && !trimmed.hasPrefix("[[") && trimmed.hasSuffix("]") && !trimmed.hasSuffix("]]") {
+                        result.append("\(key) = \(formatted)")
+                        result.append("")
+                        inserted = true
+                    }
+                    result.append(line)
+                }
+                if !inserted {
+                    result.append("\(key) = \(formatted)")
+                }
+                return result.joined(separator: "\n")
             }
             return newLines.joined(separator: "\n")
         }

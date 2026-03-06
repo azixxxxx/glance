@@ -18,6 +18,7 @@ struct NowPlayingSong: Equatable, Identifiable {
     let state: PlaybackState
     let title: String
     let artist: String
+    let album: String
     let albumArtURL: URL?
     let position: Double?
     let duration: Double?  // Duration in seconds
@@ -28,15 +29,15 @@ struct NowPlayingSong: Equatable, Identifiable {
     ///   - output: The output string returned by AppleScript.
     init?(application: String, from output: String) {
         let components = output.components(separatedBy: "|")
-        guard components.count == 6,
+        guard components.count == 7,
             let state = PlaybackState(rawValue: components[0])
         else {
             return nil
         }
         // Replace commas with dots for correct decimal conversion.
-        let positionString = components[4].replacingOccurrences(
+        let positionString = components[5].replacingOccurrences(
             of: ",", with: ".")
-        let durationString = components[5].replacingOccurrences(
+        let durationString = components[6].replacingOccurrences(
             of: ",", with: ".")
         guard let position = Double(positionString),
             let duration = Double(durationString)
@@ -48,7 +49,8 @@ struct NowPlayingSong: Equatable, Identifiable {
         self.state = state
         self.title = components[1]
         self.artist = components[2]
-        self.albumArtURL = URL(string: components[3])
+        self.album = components[3]
+        self.albumArtURL = URL(string: components[4])
         self.position = position
         if application == MusicApp.spotify.rawValue {
             self.duration = duration / 1000
@@ -78,13 +80,18 @@ enum MusicApp: String, CaseIterable {
                             on error
                                 set artworkURL to ""
                             end try
+                            try
+                                set albumName to (album of currentTrack) as text
+                            on error
+                                set albumName to ""
+                            end try
                             set stateText to ""
                             if player state is playing then
                                 set stateText to "playing"
                             else if player state is paused then
                                 set stateText to "paused"
                             end if
-                            return stateText & "|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & artworkURL & "|" & (player position as text) & "|" & ((duration of currentTrack) as text)
+                            return stateText & "|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & albumName & "|" & artworkURL & "|" & (player position as text) & "|" & ((duration of currentTrack) as text)
                         else
                             return "stopped"
                         end if
@@ -99,10 +106,10 @@ enum MusicApp: String, CaseIterable {
                     tell application "\(rawValue)"
                         if player state is playing then
                             set currentTrack to current track
-                            return "playing|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
+                            return "playing|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (album of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
                         else if player state is paused then
                             set currentTrack to current track
-                            return "paused|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
+                            return "paused|" & (name of currentTrack) & "|" & (artist of currentTrack) & "|" & (album of currentTrack) & "|" & (artwork url of currentTrack) & "|" & player position & "|" & (duration of currentTrack)
                         else
                             return "stopped"
                         end if

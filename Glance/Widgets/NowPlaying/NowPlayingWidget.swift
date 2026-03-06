@@ -74,7 +74,7 @@ struct NowPlayingContent: View {
                 .widgetStyle(appearance, heightOverride: h)
             }
         }
-        .foregroundColor(.foreground)
+        // Inherits foregroundColor from parent MenuBarView
     }
 }
 
@@ -135,7 +135,7 @@ struct AlbumArtView: View {
 
             if song.state == .paused {
                 Image(systemName: "pause.fill")
-                    .foregroundColor(.icon)
+                    .opacity(0.8)
                     .transition(.blurReplace)
             }
         }

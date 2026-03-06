@@ -27,5 +27,8 @@ xcuserdata/
 # Cursor
 .cursor/
 
+# Release artifacts
+release/
+
 # Worktrees
 .worktrees/

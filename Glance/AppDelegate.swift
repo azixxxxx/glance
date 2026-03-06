@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 /// NSHostingView subclass that enables vibrancy for glass effects.
@@ -8,6 +9,7 @@ class GlanceHostingView<Content: View>: NSHostingView<Content> {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var backgroundPanel: NSPanel?
     private var menuBarPanel: NSPanel?
+    private var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let error = ConfigManager.shared.initError {
@@ -26,6 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         MenuBarPopup.setup()
         setupPanels()
+        setupStatusItem()
+        WindowGapManager.shared.start()
+
+        // Show onboarding on first launch
+        OnboardingWindowController.shared.showIfNeeded()
 
         NotificationCenter.default.addObserver(
             self,
@@ -37,6 +44,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func screenParametersDidChange(_ notification: Notification) {
         setupPanels()
     }
+
+    // MARK: - Status Item (Tray Icon)
+
+    private func setupStatusItem() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+
+        if let button = statusItem?.button {
+            let image = NSImage(systemSymbolName: "eye", accessibilityDescription: "Glance")
+            image?.size = NSSize(width: 18, height: 18)
+            image?.isTemplate = true
+            button.image = image
+            button.toolTip = "Glance"
+        }
+
+        let menu = NSMenu()
+
+        // Settings
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Launch at Login
+        let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin(_:)), keyEquivalent: "")
+        loginItem.target = self
+        loginItem.state = isLaunchAtLoginEnabled ? .on : .off
+        menu.addItem(loginItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Quit
+        let quitItem = NSMenuItem(title: "Quit Glance", action: #selector(quitApp), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        statusItem?.menu = menu
+    }
+
+    @objc private func openSettings() {
+        SettingsWindowController.shared.showSettings()
+    }
+
+    @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        let service = SMAppService.mainApp
+        do {
+            if isLaunchAtLoginEnabled {
+                try service.unregister()
+                sender.state = .off
+            } else {
+                try service.register()
+                sender.state = .on
+            }
+        } catch {
+            print("Failed to toggle launch at login: \(error)")
+        }
+    }
+
+    @objc private func quitApp() {
+        NSApplication.shared.terminate(nil)
+    }
+
+    private var isLaunchAtLoginEnabled: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+
+    // MARK: - Panels
 
     /// Configures and displays the background and menu bar panels.
     private func setupPanels() {

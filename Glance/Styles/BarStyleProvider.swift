@@ -6,7 +6,6 @@ enum BarStyle: String, CaseIterable {
     case glass
     case solid
     case minimal
-    case system
 }
 
 // MARK: - Environment Keys
@@ -54,7 +53,7 @@ struct PersistentBlurView: NSViewRepresentable {
 // MARK: - Widget Style Modifier
 
 /// Applied to individual widget capsules.
-/// Uses AppearanceConfig for all visual parameters.
+/// Uses AppearanceConfig for all visual parameters including colors.
 struct WidgetStyleModifier: ViewModifier {
     let appearance: AppearanceConfig
     let heightOverride: CGFloat?
@@ -72,7 +71,7 @@ struct WidgetStyleModifier: ViewModifier {
                 .background(
                     ZStack {
                         PersistentBlurView(material: appearance.blurMaterial)
-                        Color.white.opacity(appearance.fillOpacity)
+                        appearance.widgetBackgroundColor.opacity(appearance.fillOpacity)
                     }
                 )
                 .clipShape(shape)
@@ -81,43 +80,49 @@ struct WidgetStyleModifier: ViewModifier {
                         .strokeBorder(
                             LinearGradient(
                                 colors: [
-                                    .white.opacity(appearance.borderTopOpacity),
-                                    .white.opacity(appearance.borderMidOpacity),
-                                    .white.opacity(appearance.borderBottomOpacity),
+                                    appearance.borderColor.opacity(appearance.borderTopOpacity),
+                                    appearance.borderColor.opacity(appearance.borderMidOpacity),
+                                    appearance.borderColor.opacity(appearance.borderBottomOpacity),
                                 ],
                                 startPoint: .top, endPoint: .bottom
                             ),
                             lineWidth: appearance.borderWidth
                         )
                 )
-                .shadow(color: .white.opacity(appearance.glowOpacity), radius: appearance.glowRadius)
+                .shadow(color: appearance.glowColor.opacity(appearance.glowOpacity), radius: appearance.glowRadius)
                 .shadow(color: .black.opacity(appearance.shadowOpacity), radius: appearance.shadowRadius, y: appearance.shadowY)
         case .solid:
             content
-                .background(Color.white.opacity(appearance.fillOpacity))
+                .background(appearance.widgetBackgroundColor.opacity(appearance.fillOpacity))
                 .clipShape(shape)
                 .overlay(
                     shape
                         .strokeBorder(
                             LinearGradient(
-                                colors: [
-                                    .white.opacity(appearance.borderTopOpacity),
-                                    .white.opacity(appearance.borderMidOpacity),
-                                    .white.opacity(appearance.borderBottomOpacity),
-                                ],
-                                startPoint: .top, endPoint: .bottom
+                                colors: appearance.borderColor2 != nil
+                                    ? [
+                                        appearance.borderColor.opacity(appearance.borderTopOpacity),
+                                        appearance.borderColor2!.opacity(appearance.borderTopOpacity),
+                                    ]
+                                    : [
+                                        appearance.borderColor.opacity(appearance.borderTopOpacity),
+                                        appearance.borderColor.opacity(appearance.borderMidOpacity),
+                                        appearance.borderColor.opacity(appearance.borderBottomOpacity),
+                                    ],
+                                startPoint: appearance.borderColor2 != nil ? .leading : .top,
+                                endPoint: appearance.borderColor2 != nil ? .trailing : .bottom
                             ),
                             lineWidth: appearance.borderWidth
                         )
                 )
-                .shadow(color: .white.opacity(appearance.glowOpacity), radius: appearance.glowRadius)
+                .shadow(color: appearance.glowColor.opacity(appearance.glowOpacity), radius: appearance.glowRadius)
+                .shadow(color: appearance.borderColor2 != nil
+                    ? appearance.borderColor2!.opacity(appearance.glowOpacity * 0.5)
+                    : .clear,
+                    radius: appearance.glowRadius)
                 .shadow(color: .black.opacity(appearance.shadowOpacity), radius: appearance.shadowRadius, y: appearance.shadowY)
         case .minimal:
             content
-        case .system:
-            content
-                .background(.regularMaterial)
-                .clipShape(shape)
         }
     }
 }
@@ -125,7 +130,6 @@ struct WidgetStyleModifier: ViewModifier {
 // MARK: - Popup Style Modifier
 
 /// Applied to popup panels (calendar, volume, network, etc.)
-/// Popups use native .glassEffect() since the popup panel IS key when visible.
 struct PopupStyleModifier: ViewModifier {
     let appearance: AppearanceConfig
     let cornerRadius: CGFloat
@@ -143,7 +147,7 @@ struct PopupStyleModifier: ViewModifier {
                     .background(
                         ZStack {
                             PersistentBlurView(material: appearance.blurMaterial)
-                            Color.white.opacity(appearance.fillOpacity)
+                            appearance.widgetBackgroundColor.opacity(appearance.fillOpacity)
                             Color.black.opacity(appearance.popupDarkTint)
                         }
                     )
@@ -153,33 +157,36 @@ struct PopupStyleModifier: ViewModifier {
                             .strokeBorder(
                                 LinearGradient(
                                     colors: [
-                                        .white.opacity(min(appearance.borderTopOpacity * 1.4, 1.0)),
-                                        .white.opacity(min(appearance.borderMidOpacity * 1.4, 1.0)),
-                                        .white.opacity(min(appearance.borderBottomOpacity * 1.5, 1.0)),
+                                        appearance.borderColor.opacity(min(appearance.borderTopOpacity * 1.4, 1.0)),
+                                        appearance.borderColor.opacity(min(appearance.borderMidOpacity * 1.4, 1.0)),
+                                        appearance.borderColor.opacity(min(appearance.borderBottomOpacity * 1.5, 1.0)),
                                     ],
                                     startPoint: .top, endPoint: .bottom
                                 ),
                                 lineWidth: max(appearance.borderWidth, 1.0)
                             )
                     )
-                    .shadow(color: .white.opacity(appearance.glowOpacity * 1.6), radius: appearance.glowRadius + 1)
+                    .shadow(color: appearance.glowColor.opacity(appearance.glowOpacity * 1.6), radius: appearance.glowRadius + 1)
                     .shadow(color: .black.opacity(0.20), radius: 16, y: 6)
             }
         case .solid:
             content
                 .background(
-                    shape.fill(Color(white: 0.12))
+                    shape.fill(appearance.widgetBackgroundColor)
                 )
                 .clipShape(shape)
+                .overlay(
+                    shape
+                        .strokeBorder(
+                            appearance.borderColor.opacity(0.3),
+                            lineWidth: 0.5
+                        )
+                )
         case .minimal:
             content
                 .background(
                     shape.fill(Color.black.opacity(appearance.popupDarkTint > 0 ? appearance.popupDarkTint : 0.70))
                 )
-                .clipShape(shape)
-        case .system:
-            content
-                .background(.regularMaterial)
                 .clipShape(shape)
         }
     }

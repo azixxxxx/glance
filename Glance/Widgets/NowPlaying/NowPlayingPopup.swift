@@ -1,208 +1,143 @@
-import EventKit
 import SwiftUI
 
 struct NowPlayingPopup: View {
     @ObservedObject var configProvider: ConfigProvider
-    @State private var selectedVariant: MenuBarPopupVariant = .horizontal
-
-    var body: some View {
-        MenuBarPopupVariantView(
-            selectedVariant: selectedVariant,
-            onVariantSelected: { variant in
-                selectedVariant = variant
-                ConfigManager.shared.updateConfigValue(
-                    key: "widgets.default.nowplaying.popup.view-variant",
-                    newValue: variant.rawValue
-                )
-            },
-            vertical: { NowPlayingVerticalPopup() },
-            horizontal: { NowPlayingHorizontalPopup() }
-        )
-        .onAppear(perform: loadVariant)
-        .onReceive(configProvider.$config, perform: updateVariant)
-    }
-    
-    /// Loads the initial view variant from configuration.
-    private func loadVariant() {
-        if let variantString = configProvider.config["popup"]?
-            .dictionaryValue?["view-variant"]?.stringValue,
-           let variant = MenuBarPopupVariant(rawValue: variantString) {
-            selectedVariant = variant
-        } else {
-            selectedVariant = .box
-        }
-    }
-    
-    /// Updates the view variant when configuration changes.
-    private func updateVariant(newConfig: ConfigData) {
-        if let variantString = newConfig["popup"]?.dictionaryValue?["view-variant"]?.stringValue,
-           let variant = MenuBarPopupVariant(rawValue: variantString) {
-            selectedVariant = variant
-        }
-    }
-}
-
-/// A vertical layout for the now playing popup.
-private struct NowPlayingVerticalPopup: View {
     @ObservedObject private var playingManager = NowPlayingManager.shared
+    @ObservedObject var configManager = ConfigManager.shared
+    var appearance: AppearanceConfig { configManager.config.appearance }
 
     var body: some View {
         if let song = playingManager.nowPlaying,
            let duration = song.duration,
            let position = song.position {
-            VStack(spacing: 15) {
+            VStack(spacing: 0) {
+                // Album art — large, centered
                 RotateAnimatedCachedImage(
                     url: song.albumArtURL,
-                    targetSize: CGSize(width: 200, height: 200)
+                    targetSize: CGSize(width: 400, height: 400)
                 ) { image in
-                    image.clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    image.clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .frame(width: 200, height: 200)
-                .scaleEffect(song.state == .paused ? 0.9 : 1)
-                .overlay(
-                    song.state == .paused ?
-                    Color.black.opacity(0.3)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    : nil
-                )
-                .animation(.smooth(duration: 0.5, extraBounce: 0.4), value: song.state == .paused)
+                .frame(width: 220, height: 220)
+                .scaleEffect(song.state == .paused ? 0.95 : 1)
+                .opacity(song.state == .paused ? 0.7 : 1)
+                .animation(.smooth(duration: 0.4), value: song.state == .paused)
+                .padding(.bottom, 16)
 
-                VStack(alignment: .center) {
+                // Track info
+                VStack(spacing: 3) {
                     Text(song.title)
-                        .multilineTextAlignment(.center)
-                        .font(.system(size: 15))
-                        .fontWeight(.medium)
-                    Text(song.artist)
-                        .opacity(0.6)
-                        .font(.system(size: 15))
-                        .fontWeight(.light)
-                }
+                        .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1)
 
+                    Text(song.artist)
+                        .font(.system(size: 13))
+                        .opacity(0.6)
+                        .lineLimit(1)
+
+                    // Album name
+                    if !song.album.isEmpty {
+                        Text(song.album)
+                            .font(.system(size: 12))
+                            .opacity(0.4)
+                            .lineLimit(1)
+                            .padding(.top, 1)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 14)
+
+                // Animated progress bar
+                SmoothProgressBar(
+                    position: position,
+                    duration: duration,
+                    isPlaying: song.state == .playing,
+                    accentColor: appearance.accentColor,
+                    trackColor: appearance.foregroundColor.opacity(0.15)
+                )
+                .padding(.bottom, 4)
+
+                // Time labels
                 HStack {
                     Text(timeString(from: position))
-                        .font(.caption)
-                    ProgressView(value: position, total: duration)
-                        .progressViewStyle(LinearProgressViewStyle())
-                        .tint(.white)
+                    Spacer()
                     Text("-" + timeString(from: duration - position))
-                        .font(.caption)
                 }
-                .foregroundColor(.gray)
+                .font(.caption2)
                 .monospacedDigit()
+                .opacity(0.4)
+                .padding(.bottom, 16)
 
-                HStack(spacing: 40) {
+                // Playback controls
+                HStack(spacing: 36) {
                     Image(systemName: "backward.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 16))
+                        .opacity(0.7)
                         .onTapGesture { playingManager.previousTrack() }
                     Image(systemName: song.state == .paused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 30))
+                        .font(.system(size: 24))
                         .onTapGesture { playingManager.togglePlayPause() }
                     Image(systemName: "forward.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 16))
+                        .opacity(0.7)
                         .onTapGesture { playingManager.nextTrack() }
                 }
             }
-            .padding(.horizontal, 25)
-            .padding(.vertical, 30)
-            .frame(width: 300)
+            .padding(22)
+            .frame(width: 264)
             .animation(.easeInOut, value: song.albumArtURL)
         }
     }
 }
 
-/// A horizontal layout for the now playing popup.
-struct NowPlayingHorizontalPopup: View {
-    @ObservedObject private var playingManager = NowPlayingManager.shared
+// MARK: - Smooth Progress Bar
+
+/// A progress bar that smoothly animates between position updates.
+private struct SmoothProgressBar: View {
+    let position: Double
+    let duration: Double
+    let isPlaying: Bool
+    let accentColor: Color
+    let trackColor: Color
+
+    @State private var animatedProgress: CGFloat = 0
 
     var body: some View {
-        if let song = playingManager.nowPlaying,
-           let duration = song.duration,
-           let position = song.position {
-            VStack(spacing: 15) {
-                HStack(spacing: 15) {
-                    RotateAnimatedCachedImage(
-                        url: song.albumArtURL,
-                        targetSize: CGSize(width: 200, height: 200)
-                    ) { image in
-                        image.clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-                    .frame(width: 60, height: 60)
-                    .scaleEffect(song.state == .paused ? 0.9 : 1)
-                    .overlay(
-                        song.state == .paused ?
-                        Color.black.opacity(0.3)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        : nil
-                    )
-                    .animation(.smooth(duration: 0.5, extraBounce: 0.4), value: song.state == .paused)
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                // Track
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(trackColor)
+                    .frame(height: 3)
 
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(song.title)
-                            .font(.headline)
-                            .fontWeight(.medium)
-                        Text(song.artist)
-                            .opacity(0.6)
-                            .font(.headline)
-                            .fontWeight(.light)
-                    }
-                    .padding(.trailing, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                // Fill
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(accentColor)
+                    .frame(width: geo.size.width * animatedProgress, height: 3)
 
-                HStack {
-                    Text(timeString(from: position))
-                        .font(.caption)
-                    ProgressView(value: position, total: duration)
-                        .progressViewStyle(LinearProgressViewStyle())
-                        .tint(.white)
-                    Text("-" + timeString(from: duration - position))
-                        .font(.caption)
-                }
-                .foregroundColor(.gray)
-                .monospacedDigit()
-
-                HStack(spacing: 40) {
-                    Image(systemName: "backward.fill")
-                        .font(.system(size: 20))
-                        .onTapGesture { playingManager.previousTrack() }
-                    Image(systemName: song.state == .paused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 30))
-                        .onTapGesture { playingManager.togglePlayPause() }
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: 20))
-                        .onTapGesture { playingManager.nextTrack() }
-                }
+                // Knob
+                Circle()
+                    .fill(accentColor)
+                    .frame(width: 8, height: 8)
+                    .offset(x: max(0, geo.size.width * animatedProgress - 4))
+                    .shadow(color: accentColor.opacity(0.4), radius: 4)
             }
-            .padding(.horizontal, 25)
-            .padding(.vertical, 20)
-            .frame(width: 300, height: 180)
-            .animation(.easeInOut, value: song.albumArtURL)
+        }
+        .frame(height: 8)
+        .onAppear {
+            animatedProgress = CGFloat(position / max(duration, 1))
+        }
+        .onChange(of: position) { _, newPosition in
+            withAnimation(.linear(duration: isPlaying ? 0.3 : 0)) {
+                animatedProgress = CGFloat(newPosition / max(duration, 1))
+            }
         }
     }
 }
 
-/// Converts a time interval in seconds to a formatted string (minutes:seconds).
 private func timeString(from seconds: Double) -> String {
     let intSeconds = Int(seconds)
     let minutes = intSeconds / 60
     let remainingSeconds = intSeconds % 60
     return String(format: "%d:%02d", minutes, remainingSeconds)
-}
-
-// MARK: - Previews
-
-struct NowPlayingPopup_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            NowPlayingVerticalPopup()
-                .background(Color.black)
-                .frame(height: 600)
-                .previewDisplayName("Vertical")
-            
-            NowPlayingHorizontalPopup()
-                .background(Color.black)
-                .previewLayout(.sizeThatFits)
-                .previewDisplayName("Horizontal")
-        }
-    }
 }

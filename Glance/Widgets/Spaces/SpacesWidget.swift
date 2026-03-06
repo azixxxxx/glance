@@ -14,7 +14,7 @@ struct SpacesWidget: View {
         }
         .experimentalConfiguration(horizontalPadding: 5)
         .animation(.smooth(duration: 0.3), value: viewModel.spaces)
-        .foregroundStyle(Color.foreground)
+        // Inherits foregroundColor from parent MenuBarView
         .environmentObject(viewModel)
     }
 }
@@ -42,7 +42,7 @@ private struct SpaceView: View {
             if showKey {
                 Text(space.id)
                     .font(.system(size: 12, weight: isFocused ? .bold : .regular))
-                    .foregroundStyle(isFocused ? Color.foregroundOutside : Color.gray)
+                    .foregroundStyle(isFocused ? Color.white : Color.gray)
                     .frame(minWidth: 12)
                     .fixedSize(horizontal: true, vertical: false)
             }
@@ -102,7 +102,7 @@ private struct WindowView: View {
                         .resizable()
                         .frame(width: size, height: size)
                         .shadow(
-                            color: .iconShadow,
+                            color: .black.opacity(0.3),
                             radius: 2
                         )
                 } else {
@@ -122,7 +122,7 @@ private struct WindowView: View {
                             : title
                     )
                     .fixedSize(horizontal: true, vertical: false)
-                    .shadow(color: .foregroundShadow, radius: 3)
+                    .shadow(color: .black.opacity(0.3), radius: 3)
                     .fontWeight(.semibold)
                     Spacer().frame(width: 5)
                 }

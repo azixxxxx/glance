@@ -3,147 +3,47 @@ import SwiftUI
 
 struct CalendarPopup: View {
     let calendarManager: CalendarManager
-
     @ObservedObject var configProvider: ConfigProvider
-    @State private var selectedVariant: MenuBarPopupVariant = .box
-
-    var body: some View {
-        MenuBarPopupVariantView(
-            selectedVariant: selectedVariant,
-            onVariantSelected: { variant in
-                selectedVariant = variant
-                ConfigManager.shared.updateConfigValue(
-                    key: "widgets.default.time.popup.view-variant",
-                    newValue: variant.rawValue
-                )
-            },
-            box: { CalendarBoxPopup() },
-            vertical: { CalendarVerticalPopup(calendarManager) },
-            horizontal: { CalendarHorizontalPopup(calendarManager) }
-        )
-        .onAppear {
-            if let variantString = configProvider.config["popup"]?
-                .dictionaryValue?["view-variant"]?.stringValue,
-                let variant = MenuBarPopupVariant(rawValue: variantString)
-            {
-                selectedVariant = variant
-            } else {
-                selectedVariant = .box
-            }
-        }
-        .onReceive(configProvider.$config) { newConfig in
-            if let variantString = newConfig["popup"]?.dictionaryValue?[
-                "view-variant"]?.stringValue,
-                let variant = MenuBarPopupVariant(rawValue: variantString)
-            {
-                selectedVariant = variant
-            }
-        }
-    }
-}
-
-struct CalendarBoxPopup: View {
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(currentMonthYear)
-                .font(.title2)
-                .padding(.bottom, 25)
-            WeekdayHeaderView()
-            CalendarDaysView(
-                weeks: weeks,
-                currentYear: currentYear,
-                currentMonth: currentMonth
-            )
-        }
-        .padding(30)
-        .fontWeight(.semibold)
-        .foregroundStyle(.white)
-    }
-}
-
-struct CalendarVerticalPopup: View {
-    let calendarManager: CalendarManager
-
-    init(_ calendarManager: CalendarManager) {
-        self.calendarManager = calendarManager
-    }
+    @ObservedObject var configManager = ConfigManager.shared
+    var appearance: AppearanceConfig { configManager.config.appearance }
 
     var body: some View {
         VStack(spacing: 0) {
+            // Header
             Text(currentMonthYear)
-                .font(.title2)
-                .padding(.bottom, 25)
-            WeekdayHeaderView()
+                .font(.title3)
+                .fontWeight(.semibold)
+                .padding(.bottom, 20)
+
+            // Weekday headers
+            WeekdayHeaderView(appearance: appearance)
+
+            // Calendar grid
             CalendarDaysView(
                 weeks: weeks,
                 currentYear: currentYear,
-                currentMonth: currentMonth
+                currentMonth: currentMonth,
+                appearance: appearance
             )
-            
-            Group {
-                if calendarManager.todaysEvents.isEmpty && calendarManager.tomorrowsEvents.isEmpty {
-                    Text(NSLocalizedString("EMPTY_EVENTS", comment: ""))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .font(.callout)
-                        .padding(.top, 3)
-                }
+
+            // Events
+            if !calendarManager.todaysEvents.isEmpty || !calendarManager.tomorrowsEvents.isEmpty {
+                Divider()
+                    .background(appearance.foregroundColor.opacity(0.15))
+                    .padding(.vertical, 16)
+
                 EventListView(
                     todaysEvents: calendarManager.todaysEvents,
-                    tomorrowsEvents: calendarManager.tomorrowsEvents
+                    tomorrowsEvents: calendarManager.tomorrowsEvents,
+                    appearance: appearance
                 )
             }
-            .frame(width: 255)
-            .padding(.top, 20)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 30)
-        .fontWeight(.semibold)
-        .foregroundStyle(.white)
+        .padding(24)
     }
 }
 
-struct CalendarHorizontalPopup: View {
-    let calendarManager: CalendarManager
-
-    init(_ calendarManager: CalendarManager) {
-        self.calendarManager = calendarManager
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(currentMonthYear)
-                    .font(.title2)
-                    .padding(.bottom, 25)
-                    .fixedSize(horizontal: true, vertical: false)
-                WeekdayHeaderView()
-                CalendarDaysView(
-                    weeks: weeks,
-                    currentYear: currentYear,
-                    currentMonth: currentMonth
-                )
-            }
-            
-            Group {
-                if calendarManager.todaysEvents.isEmpty && calendarManager.tomorrowsEvents.isEmpty {
-                    Text(NSLocalizedString("EMPTY_EVENTS", comment: ""))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .font(.callout)
-                }
-                EventListView(
-                    todaysEvents: calendarManager.todaysEvents,
-                    tomorrowsEvents: calendarManager.tomorrowsEvents
-                )
-            }
-            .frame(width: 255)
-            .padding(.leading, 30)
-        }
-        .padding(.horizontal, 30)
-        .padding(.vertical, 30)
-        .fontWeight(.semibold)
-        .foregroundStyle(.white)
-    }
-}
+// MARK: - Calendar Helpers
 
 private var currentMonthYear: String {
     let formatter = DateFormatter()
@@ -188,7 +88,11 @@ private var weeks: [[Int?]] {
     }
 }
 
+// MARK: - Weekday Header
+
 private struct WeekdayHeaderView: View {
+    let appearance: AppearanceConfig
+
     var body: some View {
         let calendar = Calendar.current
         let weekdaySymbols = calendar.shortWeekdaySymbols
@@ -207,53 +111,55 @@ private struct WeekdayHeaderView: View {
         HStack {
             ForEach(reordered.indices, id: \.self) { i in
                 let originalIndex = (i + firstWeekdayIndex) % 7
-                let isWeekend = calendar.isDateInWeekend(
-                    referenceDays[originalIndex]
-                )
-                let color = isWeekend ? Color.gray : Color.white
+                let isWeekend = calendar.isDateInWeekend(referenceDays[originalIndex])
 
                 Text(reordered[i])
+                    .font(.caption)
+                    .fontWeight(.medium)
                     .frame(width: 30)
-                    .foregroundColor(color)
+                    .opacity(isWeekend ? 0.4 : 0.6)
             }
         }
-        .padding(.bottom, 10)
+        .padding(.bottom, 8)
     }
 }
+
+// MARK: - Calendar Days
 
 private struct CalendarDaysView: View {
     let weeks: [[Int?]]
     let currentYear: Int
     let currentMonth: Int
+    let appearance: AppearanceConfig
 
     var body: some View {
         let calendar = Calendar.current
-        VStack(spacing: 10) {
+        VStack(spacing: 6) {
             ForEach(weeks.indices, id: \.self) { weekIndex in
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(weeks[weekIndex].indices, id: \.self) { dayIndex in
                         if let day = weeks[weekIndex][dayIndex] {
                             let date = calendar.date(
                                 from: DateComponents(
-                                    year: currentYear,
-                                    month: currentMonth,
-                                    day: day
+                                    year: currentYear, month: currentMonth, day: day
                                 )
                             )!
                             let isWeekend = calendar.isDateInWeekend(date)
-                            let color =
-                                isToday(day: day)
-                                ? Color.black
-                                : (isWeekend ? Color.gray : Color.white)
+                            let today = isToday(day: day)
 
                             ZStack {
-                                if isToday(day: day) {
+                                if today {
                                     Circle()
-                                        .fill(Color.white)
+                                        .fill(appearance.accentColor)
                                         .frame(width: 30, height: 30)
                                 }
                                 Text("\(day)")
-                                    .foregroundColor(color)
+                                    .font(.system(size: 13, weight: today ? .bold : .regular))
+                                    .foregroundStyle(
+                                        today
+                                            ? todayTextColor
+                                            : appearance.foregroundColor.opacity(isWeekend ? 0.4 : 1.0)
+                                    )
                                     .frame(width: 30, height: 30)
                             }
                         } else {
@@ -262,18 +168,24 @@ private struct CalendarDaysView: View {
                     }
                 }
             }
-        }.compositingGroup()
+        }
+    }
+
+    /// Pick a text color that contrasts with the accent circle.
+    /// White/light accent → black text. Colored/dark accent → white text.
+    private var todayTextColor: Color {
+        // Resolve NSColor to check luminance
+        let ns = NSColor(appearance.accentColor)
+        guard let rgb = ns.usingColorSpace(.sRGB) else { return .black }
+        let luminance = 0.299 * rgb.redComponent + 0.587 * rgb.greenComponent + 0.114 * rgb.blueComponent
+        return luminance > 0.6 ? .black : .white
     }
 
     func isToday(day: Int) -> Bool {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month], from: Date())
         if let dateFromDay = calendar.date(
-            from: DateComponents(
-                year: components.year,
-                month: components.month,
-                day: day
-            )
+            from: DateComponents(year: components.year, month: components.month, day: day)
         ) {
             return calendar.isDateInToday(dateFromDay)
         }
@@ -281,33 +193,34 @@ private struct CalendarDaysView: View {
     }
 }
 
+// MARK: - Event List
+
 private struct EventListView: View {
     let todaysEvents: [EKEvent]
     let tomorrowsEvents: [EKEvent]
+    let appearance: AppearanceConfig
 
     var body: some View {
-        if !todaysEvents.isEmpty || !tomorrowsEvents.isEmpty {
-            VStack(spacing: 10) {
-                eventSection(
-                    title: NSLocalizedString("TODAY", comment: "").uppercased(),
-                    events: todaysEvents)
-                eventSection(
-                    title: NSLocalizedString("TOMORROW", comment: "")
-                        .uppercased(), events: tomorrowsEvents)
+        VStack(alignment: .leading, spacing: 12) {
+            if !todaysEvents.isEmpty {
+                eventSection(title: NSLocalizedString("TODAY", comment: "").uppercased(), events: todaysEvents)
+            }
+            if !tomorrowsEvents.isEmpty {
+                eventSection(title: NSLocalizedString("TOMORROW", comment: "").uppercased(), events: tomorrowsEvents)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
     func eventSection(title: String, events: [EKEvent]) -> some View {
-        if !events.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(.gray)
-                ForEach(events, id: \.eventIdentifier) { event in
-                    EventRow(event: event)
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .opacity(0.5)
+            ForEach(events, id: \.eventIdentifier) { event in
+                EventRow(event: event, appearance: appearance)
             }
         }
     }
@@ -315,71 +228,40 @@ private struct EventListView: View {
 
 private struct EventRow: View {
     let event: EKEvent
+    let appearance: AppearanceConfig
 
     var body: some View {
-        let eventTime = getEventTime(event)
-        HStack(spacing: 4) {
-            Rectangle()
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 2)
                 .fill(Color(event.calendar.cgColor))
-                .frame(width: 3, height: 30)
-                .clipShape(Capsule())
-            VStack(alignment: .leading) {
+                .frame(width: 3, height: 28)
+
+            VStack(alignment: .leading, spacing: 1) {
                 Text(event.title)
-                    .font(.headline)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
                     .lineLimit(1)
-                Text(eventTime)
+                Text(getEventTime(event))
                     .font(.caption)
-                    .fontWeight(.regular)
+                    .opacity(0.6)
                     .lineLimit(1)
             }
             Spacer()
         }
-        .padding(5)
-        .padding(.trailing, 5)
-        .foregroundStyle(Color(event.calendar.cgColor))
-        .background(Color(event.calendar.cgColor).opacity(0.2))
-        .cornerRadius(6)
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(Color(event.calendar.cgColor).opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     func getEventTime(_ event: EKEvent) -> String {
-        var text = ""
-        if !event.isAllDay {
-            let formatter = DateFormatter()
-            formatter.setLocalizedDateFormatFromTemplate("j:mm")
-            text += formatter.string(from: event.startDate).replacing(":00", with: "")
-            text += " — "
-            text += formatter.string(from: event.endDate).replacing(":00", with: "")
-        } else {
+        if event.isAllDay {
             return NSLocalizedString("ALL_DAY", comment: "")
         }
-        return text
-    }
-}
-
-struct CalendarPopup_Previews: PreviewProvider {
-    var configProvider: ConfigProvider = ConfigProvider(config: ConfigData())
-    var calendarManager: CalendarManager
-
-    init() {
-        self.calendarManager = CalendarManager(configProvider: configProvider)
-    }
-
-    static var previews: some View {
-        let configProvider = ConfigProvider(config: ConfigData())
-        let calendarManager = CalendarManager(configProvider: configProvider)
-
-        CalendarBoxPopup()
-            .background(Color.black)
-            .previewLayout(.sizeThatFits)
-            .previewDisplayName("Box")
-        CalendarVerticalPopup(calendarManager)
-            .background(Color.black)
-            .frame(height: 600)
-            .previewDisplayName("Vertical")
-        CalendarHorizontalPopup(calendarManager)
-            .background(Color.black)
-            .previewLayout(.sizeThatFits)
-            .previewDisplayName("Horizontal")
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("j:mm")
+        let start = formatter.string(from: event.startDate).replacing(":00", with: "")
+        let end = formatter.string(from: event.endDate).replacing(":00", with: "")
+        return "\(start) — \(end)"
     }
 }

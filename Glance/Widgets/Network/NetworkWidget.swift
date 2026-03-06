@@ -33,46 +33,46 @@ struct NetworkWidget: View {
         }
     }
 
+    @ViewBuilder
     private var wifiIcon: some View {
         switch viewModel.wifiState {
         case .connected:
-            return Image(systemName: "wifi")
-                .foregroundColor(.foregroundOutside)
+            Image(systemName: "wifi")
         case .connecting:
-            return Image(systemName: "wifi")
-                .foregroundColor(.yellow)
+            Image(systemName: "wifi")
+                .foregroundStyle(.yellow)
         case .connectedWithoutInternet:
-            return Image(systemName: "wifi.exclamationmark")
-                .foregroundColor(.yellow)
+            Image(systemName: "wifi.exclamationmark")
+                .foregroundStyle(.yellow)
         case .disconnected:
-            return Image(systemName: "wifi.slash")
-                .foregroundColor(.gray)
+            Image(systemName: "wifi.slash")
+                .opacity(0.5)
         case .disabled:
-            return Image(systemName: "wifi.slash")
-                .foregroundColor(.red)
+            Image(systemName: "wifi.slash")
+                .foregroundStyle(.red)
         case .notSupported:
-            return Image(systemName: "wifi.exclamationmark")
-                .foregroundColor(.gray)
+            Image(systemName: "wifi.exclamationmark")
+                .opacity(0.5)
         }
     }
 
+    @ViewBuilder
     private var ethernetIcon: some View {
         switch viewModel.ethernetState {
         case .connected:
-            return Image(systemName: "network")
-                .foregroundColor(.primary)
+            Image(systemName: "network")
         case .connectedWithoutInternet:
-            return Image(systemName: "network")
-                .foregroundColor(.yellow)
+            Image(systemName: "network")
+                .foregroundStyle(.yellow)
         case .connecting:
-            return Image(systemName: "network.slash")
-                .foregroundColor(.yellow)
+            Image(systemName: "network.slash")
+                .foregroundStyle(.yellow)
         case .disconnected:
-            return Image(systemName: "network.slash")
-                .foregroundColor(.red)
+            Image(systemName: "network.slash")
+                .foregroundStyle(.red)
         case .disabled, .notSupported:
-            return Image(systemName: "questionmark.circle")
-                .foregroundColor(.gray)
+            Image(systemName: "questionmark.circle")
+                .opacity(0.5)
         }
     }
 }

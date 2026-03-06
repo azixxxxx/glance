@@ -5,7 +5,7 @@ struct MenuBarPopupView<Content: View>: View {
     let isPreview: Bool
 
     @ObservedObject var configManager = ConfigManager.shared
-    @Environment(\.appearance) private var appearance
+    var appearance: AppearanceConfig { configManager.config.appearance }
     var foregroundHeight: CGFloat { configManager.config.experimental.foreground.resolveHeight() }
 
     @State private var contentHeight: CGFloat = 0
@@ -131,7 +131,7 @@ struct MenuBarPopupView<Content: View>: View {
                     }
             }
         )
-        .foregroundStyle(.white)
+        .foregroundStyle(appearance.foregroundColor)
         .preferredColorScheme(.dark)
     }
 

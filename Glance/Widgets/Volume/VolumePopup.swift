@@ -2,28 +2,27 @@ import SwiftUI
 
 struct VolumePopup: View {
     @ObservedObject var viewModel: VolumeViewModel
+    @ObservedObject var configManager = ConfigManager.shared
+    var appearance: AppearanceConfig { configManager.config.appearance }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 8) {
+        VStack(spacing: 14) {
+            // Volume percentage
+            HStack {
                 Image(systemName: viewModel.volumeIconName)
-                    .padding(8)
-                    .background(
-                        viewModel.isMuted
-                            ? Color.red.opacity(0.8) : Color.blue.opacity(0.8)
-                    )
-                    .clipShape(Circle())
-                    .foregroundStyle(.white)
-
-                Text("\(viewModel.volumePercent)%")
-                    .foregroundColor(.white)
+                    .font(.system(size: 14))
+                    .foregroundStyle(viewModel.isMuted ? .red : appearance.accentColor)
+                Text(viewModel.isMuted ? "Muted" : "\(viewModel.volumePercent)%")
                     .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
             }
 
-            HStack(spacing: 12) {
+            // Slider
+            HStack(spacing: 10) {
                 Image(systemName: "speaker.fill")
-                    .foregroundColor(.gray)
-                    .font(.system(size: 12))
+                    .font(.system(size: 10))
+                    .opacity(0.4)
 
                 Slider(
                     value: Binding(
@@ -32,38 +31,45 @@ struct VolumePopup: View {
                     ),
                     in: 0...1
                 )
-                .tint(.blue)
+                .tint(appearance.accentColor)
 
                 Image(systemName: "speaker.wave.3.fill")
-                    .foregroundColor(.gray)
-                    .font(.system(size: 12))
+                    .font(.system(size: 10))
+                    .opacity(0.4)
             }
 
+            // Mute button
             Button(action: { viewModel.toggleMute() }) {
-                HStack {
-                    Image(
-                        systemName: viewModel.isMuted
-                            ? "speaker.slash" : "speaker.wave.2"
-                    )
+                HStack(spacing: 6) {
+                    Image(systemName: viewModel.isMuted ? "speaker.slash" : "speaker.wave.2")
+                        .font(.system(size: 11))
                     Text(viewModel.isMuted ? "Unmute" : "Mute")
+                        .font(.subheadline)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
-                .background(Color.white.opacity(0.1))
-                .cornerRadius(8)
+                .background(appearance.foregroundColor.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
-            .foregroundColor(.white)
-        }
-        .frame(width: 220)
-        .padding(25)
-        .background(Color.clear)
-    }
-}
 
-struct VolumePopup_Previews: PreviewProvider {
-    static var previews: some View {
-        VolumePopup(viewModel: VolumeViewModel())
-            .previewLayout(.sizeThatFits)
+            // Output device
+            if !viewModel.outputDeviceName.isEmpty {
+                Divider().opacity(0.15)
+
+                HStack(spacing: 8) {
+                    Image(systemName: viewModel.outputDeviceIcon)
+                        .font(.system(size: 11))
+                        .opacity(0.5)
+                    Text(viewModel.outputDeviceName)
+                        .font(.system(size: 12))
+                        .opacity(0.6)
+                        .lineLimit(1)
+                    Spacer()
+                }
+            }
+        }
+        .frame(width: 200)
+        .padding(22)
     }
 }
