@@ -26,6 +26,8 @@ struct SystemMonitorWidget: View {
         }
         .barSingleLineAligned()
         .shadow(color: .black.opacity(0.3), radius: 3)
+        .shadow(color: viewModel.cpuUsage > 80 ? .orange.opacity(0.5) : .clear, radius: 6)
+        .badge(count: viewModel.cpuUsage > 90 ? 0 : nil)
         .experimentalConfiguration(horizontalPadding: 10)
         .frame(maxHeight: .infinity)
         .background(

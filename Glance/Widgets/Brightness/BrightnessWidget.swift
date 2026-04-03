@@ -54,6 +54,20 @@ struct BrightnessWidget: View {
                 })
                 : AnyView(EmptyView())
         )
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in
+                    FeedbackManager.shared.tock()
+                    MenuBarPopup.show(rect: rect, id: "brightness-actions") {
+                        QuickActionsView(title: "Brightness", actions: [
+                            QuickAction(icon: "sun.min", label: "25%") { viewModel.setBrightness(0.25) },
+                            QuickAction(icon: "sun.min.fill", label: "50%") { viewModel.setBrightness(0.50) },
+                            QuickAction(icon: "sun.max", label: "75%") { viewModel.setBrightness(0.75) },
+                            QuickAction(icon: "sun.max.fill", label: "100%") { viewModel.setBrightness(1.0) },
+                        ])
+                    }
+                }
+        )
         .onTapGesture {
             MenuBarPopup.show(rect: rect, id: "brightness") {
                 BrightnessPopup(viewModel: viewModel)

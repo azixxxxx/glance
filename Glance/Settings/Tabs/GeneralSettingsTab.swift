@@ -236,13 +236,25 @@ struct GeneralSettingsTab: View {
                         .foregroundStyle(.secondary)
                 }
 
+                // MARK: - Share Preset
+                SettingsSection(title: "Share Preset") {
+                    HStack(spacing: 12) {
+                        Button("Export Preset...") { PresetShareManager.exportPreset() }
+                        Button("Import Preset...") { PresetShareManager.importPreset() }
+                        Button("Copy Share Link") { PresetShareManager.copyShareLink() }
+                    }
+                    Text("Share your visual preset as a .glance file or a glance:// link. Others can open it to apply your style.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 // MARK: - Config
                 SettingsSection(title: "Configuration") {
                     HStack(spacing: 12) {
                         Button("Export Config...") { exportConfig() }
                         Button("Import Config...") { importConfig() }
                     }
-                    Text("Export saves your current config to a file. Import replaces it.")
+                    Text("Export saves your full config to a file. Import replaces it.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

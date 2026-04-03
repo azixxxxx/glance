@@ -25,6 +25,8 @@ struct SpacesWidget: View {
     @ObservedObject var configManager = ConfigManager.shared
     var foregroundHeight: CGFloat { configManager.config.experimental.foreground.resolveHeight() }
 
+    @Namespace private var highlightNamespace
+
     var body: some View {
         Group {
             if viewModel.isUnavailable {
@@ -34,7 +36,7 @@ struct SpacesWidget: View {
             } else {
                 HStack(spacing: foregroundHeight < 30 ? 0 : 8) {
                     ForEach(viewModel.spaces) { space in
-                        SpaceView(space: space)
+                        SpaceView(space: space, highlightNamespace: highlightNamespace)
                     }
                 }
             }
@@ -71,6 +73,7 @@ private struct SpaceView: View {
     }
 
     let space: AnySpace
+    let highlightNamespace: Namespace.ID
 
     @State var isHovered = false
 
@@ -87,11 +90,13 @@ private struct SpaceView: View {
                     highlight,
                     isFocused: isFocused,
                     isHovered: isHovered,
-                    accentColor: appearance.accentColor
+                    accentColor: appearance.accentColor,
+                    namespace: highlightNamespace
                 )
                 .contentShape(Rectangle())
                 .transition(.blurReplace)
                 .onTapGesture {
+                    FeedbackManager.shared.tock()
                     viewModel.switchToSpace(space, needWindowFocus: true)
                 }
                 .animation(.smooth, value: isHovered)
@@ -193,6 +198,7 @@ private struct HighlightModifier: ViewModifier {
     let isFocused: Bool
     let isHovered: Bool
     let accentColor: Color
+    let namespace: Namespace.ID
 
     func body(content: Content) -> some View {
         switch style {
@@ -203,12 +209,20 @@ private struct HighlightModifier: ViewModifier {
         case .pill:
             content
                 .background(
-                    Capsule()
-                        .fill(accentColor.opacity(isFocused ? 0.3 : 0))
-                        .overlay(
+                    Group {
+                        if isFocused {
                             Capsule()
-                                .strokeBorder(accentColor.opacity(isFocused ? 0.4 : 0), lineWidth: 0.5)
-                        )
+                                .fill(accentColor.opacity(0.3))
+                                .overlay(
+                                    Capsule()
+                                        .strokeBorder(accentColor.opacity(0.4), lineWidth: 0.5)
+                                )
+                                .matchedGeometryEffect(id: "spaceHighlight", in: namespace)
+                        } else {
+                            Capsule()
+                                .fill(Color.clear)
+                        }
+                    }
                 )
                 .opacity(isFocused ? 1.0 : (isHovered ? 0.85 : 0.55))
 
@@ -220,7 +234,7 @@ private struct HighlightModifier: ViewModifier {
                             .fill(accentColor)
                             .frame(width: 16, height: 2.5)
                             .offset(y: -2)
-                            .transition(.scale.combined(with: .opacity))
+                            .matchedGeometryEffect(id: "spaceHighlight", in: namespace)
                     }
                 }
                 .opacity(isFocused ? 1.0 : (isHovered ? 0.85 : 0.55))
@@ -238,13 +252,15 @@ private extension View {
         _ style: SpacesHighlight,
         isFocused: Bool,
         isHovered: Bool,
-        accentColor: Color
+        accentColor: Color,
+        namespace: Namespace.ID
     ) -> some View {
         modifier(HighlightModifier(
             style: style,
             isFocused: isFocused,
             isHovered: isHovered,
-            accentColor: accentColor
+            accentColor: accentColor,
+            namespace: namespace
         ))
     }
 }

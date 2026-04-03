@@ -26,6 +26,28 @@ struct NowPlayingWidget: View {
 
                 // Visible content with fixed animated width.
                 VisibleNowPlayingContent(song: song, width: animatedWidth)
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.5)
+                            .onEnded { _ in
+                                FeedbackManager.shared.tock()
+                                MenuBarPopup.show(rect: widgetFrame, id: "nowplaying-actions") {
+                                    QuickActionsView(title: song.title, actions: [
+                                        QuickAction(icon: "backward.fill", label: "Prev") {
+                                            playingManager.previousTrack()
+                                        },
+                                        QuickAction(
+                                            icon: song.state == .playing ? "pause.fill" : "play.fill",
+                                            label: song.state == .playing ? "Pause" : "Play"
+                                        ) {
+                                            playingManager.togglePlayPause()
+                                        },
+                                        QuickAction(icon: "forward.fill", label: "Next") {
+                                            playingManager.nextTrack()
+                                        },
+                                    ])
+                                }
+                            }
+                    )
                     .onTapGesture {
                         MenuBarPopup.show(rect: widgetFrame, id: "nowplaying") {
                             NowPlayingPopup(configProvider: configProvider)

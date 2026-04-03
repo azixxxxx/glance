@@ -56,6 +56,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPanels()
     }
 
+    // MARK: - File & URL Open
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            if url.scheme == "glance" {
+                PresetShareManager.applyPresetURL(url)
+            } else if url.pathExtension == "glance" {
+                PresetShareManager.applyPresetFile(at: url)
+            }
+        }
+    }
+
     // MARK: - Status Item (Tray Icon)
 
     private func setupStatusItem() {

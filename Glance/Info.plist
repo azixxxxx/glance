@@ -11,9 +11,35 @@
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Glance uses Bluetooth to show connected devices and battery levels in the status bar.</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.2.1</string>
+	<string>1.3.0</string>
 	<key>CFBundleVersion</key>
-	<string>12</string>
+	<string>13</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Glance Preset</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>glance</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Glance Preset</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>glance</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+		</dict>
+	</array>
 	<key>SUPublicEDKey</key>
 	<string>xana+i2P74Z6YWL8lqsY23+g7Y3lT4BqWVCV8gS4jd4=</string>
 	<key>SUFeedURL</key>

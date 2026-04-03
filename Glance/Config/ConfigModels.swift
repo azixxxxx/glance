@@ -10,10 +10,11 @@ struct RootToml: Decodable {
     var yabai: YabaiConfig?
     var aerospace: AerospaceConfig?
     var experimental: ExperimentalConfig?
+    var feedback: FeedbackConfig?
     var widgets: WidgetsSection
 
     enum CodingKeys: String, CodingKey {
-        case theme, style, preset, hotkey, yabai, aerospace, experimental, widgets
+        case theme, style, preset, hotkey, yabai, aerospace, experimental, feedback, widgets
         case appearanceOverrides = "appearance"
     }
 
@@ -25,6 +26,8 @@ struct RootToml: Decodable {
         self.appearanceOverrides = nil
         self.yabai = nil
         self.aerospace = nil
+        self.experimental = nil
+        self.feedback = nil
         self.widgets = WidgetsSection(displayed: [], others: [:])
     }
 
@@ -38,6 +41,7 @@ struct RootToml: Decodable {
         yabai = try container.decodeIfPresent(YabaiConfig.self, forKey: .yabai)
         aerospace = try container.decodeIfPresent(AerospaceConfig.self, forKey: .aerospace)
         experimental = try container.decodeIfPresent(ExperimentalConfig.self, forKey: .experimental)
+        feedback = try container.decodeIfPresent(FeedbackConfig.self, forKey: .feedback)
         widgets = try container.decodeIfPresent(WidgetsSection.self, forKey: .widgets)
             ?? WidgetsSection(displayed: [], others: [:])
     }
@@ -51,12 +55,20 @@ struct Config {
     }
 
     var appearance: AppearanceConfig {
-        // Wallpaper adaptive theme takes priority over preset
+        // 1. Active profile preset takes highest priority
+        if let profile = ProfileManager.shared.activeProfile,
+           let presetName = profile.presetName,
+           let preset = Preset(rawValue: presetName) {
+            return preset.defaults.applying(overrides: rootToml.appearanceOverrides)
+        }
+
+        // 2. Wallpaper adaptive theme
         if WallpaperThemeManager.shared.isEnabled,
            let wallpaperAppearance = WallpaperThemeManager.shared.derivedAppearance {
             return wallpaperAppearance
         }
 
+        // 3. Config file preset
         let base: Preset
         if let presetName = rootToml.preset,
            let preset = Preset(rawValue: presetName) {
@@ -82,7 +94,18 @@ struct Config {
     }
     
     var experimental: ExperimentalConfig {
-        rootToml.experimental ?? ExperimentalConfig()
+        let base = rootToml.experimental ?? ExperimentalConfig()
+        // Override formation if active profile specifies one
+        if let profile = ProfileManager.shared.activeProfile,
+           let formationName = profile.formationName,
+           let formation = BarFormation(rawValue: formationName) {
+            return ExperimentalConfig(foreground: ForegroundConfig(from: base.foreground, formation: formation), background: base.background)
+        }
+        return base
+    }
+
+    var feedback: FeedbackConfig {
+        rootToml.feedback ?? FeedbackConfig()
     }
 }
 
@@ -306,7 +329,12 @@ struct AerospaceConfig: Decodable {
 struct ExperimentalConfig: Decodable {
     let foreground: ForegroundConfig
     let background: BackgroundConfig
-    
+
+    init(foreground: ForegroundConfig, background: BackgroundConfig) {
+        self.foreground = foreground
+        self.background = background
+    }
+
     enum CodingKeys: String, CodingKey {
         case foreground, background
     }
@@ -340,6 +368,18 @@ struct ForegroundConfig: Decodable {
     let formation: BarFormation
     let margin: CGFloat     // Screen-edge margin for floating/pills
     let gap: CGFloat        // Gap between groups in pills mode
+
+    /// Copy with overridden formation.
+    init(from base: ForegroundConfig, formation: BarFormation) {
+        self.height = base.height
+        self.horizontalPadding = base.horizontalPadding
+        self.widgetsBackground = base.widgetsBackground
+        self.spacing = base.spacing
+        self.autoHide = base.autoHide
+        self.formation = formation
+        self.margin = base.margin
+        self.gap = base.gap
+    }
 
     init() {
         self.height = .defaultHeight
@@ -501,5 +541,22 @@ enum BackgroundForegroundHeight: Decodable {
                 debugDescription: "Expected 'default', 'menu-bar' or a float value"
             )
         )
+    }
+}
+
+struct FeedbackConfig: Decodable {
+    let haptics: Bool
+
+    init() {
+        self.haptics = true
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        haptics = try container.decodeIfPresent(Bool.self, forKey: .haptics) ?? true
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case haptics
     }
 }

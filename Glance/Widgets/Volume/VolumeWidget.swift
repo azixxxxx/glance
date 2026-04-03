@@ -4,6 +4,8 @@ struct VolumeWidget: View {
     @EnvironmentObject var configProvider: ConfigProvider
     @StateObject private var viewModel = VolumeViewModel()
     @State private var rect: CGRect = .zero
+    @State private var showScrollFeedback = false
+    @State private var feedbackDismissTask: Task<Void, Never>?
 
     private var showPercentage: Bool {
         configProvider.config["show-percentage"]?.boolValue ?? false
@@ -42,7 +44,44 @@ struct VolumeWidget: View {
             .overlay(
                 VolumeScrollOverlay { delta in
                     viewModel.adjustVolume(by: delta > 0 ? -scrollStep : scrollStep)
+                    FeedbackManager.shared.tick()
+                    showScrollFeedback = true
+                    feedbackDismissTask?.cancel()
+                    feedbackDismissTask = Task {
+                        try? await Task.sleep(for: .seconds(1))
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run { showScrollFeedback = false }
+                    }
                 }
+            )
+            .overlay(
+                Group {
+                    if showScrollFeedback && !showPercentage {
+                        Text(viewModel.isMuted ? "Mute" : "\(viewModel.volumePercent)%")
+                            .font(.system(size: 11, weight: .semibold))
+                            .monospacedDigit()
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                    }
+                }
+                .animation(showScrollFeedback ? .easeOut(duration: 0.15) : .easeIn(duration: 0.3), value: showScrollFeedback)
+            )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.5)
+                    .onEnded { _ in
+                        FeedbackManager.shared.tock()
+                        MenuBarPopup.show(rect: rect, id: "volume-actions") {
+                            QuickActionsView(title: "Volume", actions: [
+                                QuickAction(
+                                    icon: viewModel.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill",
+                                    label: viewModel.isMuted ? "Unmute" : "Mute",
+                                    isActive: viewModel.isMuted
+                                ) { viewModel.toggleMute() },
+                            ])
+                        }
+                    }
             )
             .onTapGesture {
                 MenuBarPopup.show(rect: rect, id: "volume") {

@@ -15,6 +15,7 @@ struct NetworkWidget: View {
             }
         }
         .barSingleLineAligned()
+        .badge(count: viewModel.wifiSignalStrength == .low ? 0 : nil, color: .yellow)
         .background(
             GeometryReader { geometry in
                 Color.clear

@@ -2,7 +2,7 @@
 
 Modern macOS status bar replacement with liquid glass UI, native Spaces support, and custom widgets.
 
-**Version:** 1.2.1
+**Version:** 1.3.0
 **Author:** azixxxxx (Azim Sukhanov)
 **GitHub:** https://github.com/azixxxxx/glance
 **Bundle ID:** `com.azimsukhanov.glance`

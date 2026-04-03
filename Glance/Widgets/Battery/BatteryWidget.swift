@@ -53,6 +53,7 @@ struct BatteryWidget: View {
             )
         }
         .barSingleLineAligned(opticalYOffset: -0.1)
+        .badge(count: level <= warningLevel && !isPluggedIn ? 0 : nil, color: level <= criticalLevel ? .red : .yellow)
         .experimentalConfiguration()
         .frame(maxHeight: .infinity)
         .background(.black.opacity(0.001))
@@ -107,6 +108,7 @@ private struct BatteryText: View {
             if isCharging && level != 100 {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: showPercentage ? 8 : 10))
+                    .symbolEffect(.pulse, options: .repeating, isActive: true)
             }
 
             if !isCharging && isPluggedIn && level != 100 {

@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.3.0 — "The Bar That Feels Alive"
+
+### Micro-Animations
+- Battery bolt icon pulses when charging
+- System Monitor glows orange when CPU exceeds 80%
+- Pomodoro icon and text pulse red in the last 60 seconds of a work session
+- Volume/Brightness show a transient percentage capsule when scroll-adjusting
+- Spaces highlight (pill/underline) slides smoothly between spaces via matchedGeometryEffect
+
+### Haptic Feedback
+- Scroll-to-adjust volume/brightness triggers a light haptic tick
+- Switching spaces triggers a tactile tock
+- Quick action buttons trigger haptic feedback
+- Configurable via `[feedback] haptics = true/false` in TOML
+
+### Notification Badges
+- Battery: yellow/red dot when level drops below warning threshold (not plugged in)
+- System Monitor: red dot when CPU exceeds 90%
+- Network: yellow dot when Wi-Fi signal is weak
+- Badges appear/disappear with spring animation
+
+### Quick Actions (Long-Press)
+- Volume: long-press to Mute/Unmute
+- Now Playing: long-press for Prev / Play-Pause / Next controls
+- Brightness: long-press for 25% / 50% / 75% / 100% preset levels
+
+### Contextual Profiles
+- Create named profiles with preset + formation overrides
+- Auto-activate by frontmost app (e.g. Xcode → Minimal) or time range (e.g. 18:00-06:00 → Tokyo Night)
+- App triggers take priority over time triggers
+- Smooth crossfade between profiles
+- Full Settings UI for profile management (create, edit, delete)
+- Profiles stored in UserDefaults with JSON persistence
+
+### Preset Sharing
+- Export current visual preset as a `.glance` file (includes preset, formation, and all appearance overrides)
+- Import `.glance` files to instantly apply someone else's style
+- Copy a `glance://preset/<base64>` share link to clipboard
+- URL scheme and file association registered — double-click `.glance` files or click links to import
+- Share Preset section added to Settings > General
+
 ## 1.2.1
 
 ### Fixes

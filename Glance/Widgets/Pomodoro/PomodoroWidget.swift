@@ -12,9 +12,11 @@ struct PomodoroWidget: View {
                     Image(systemName: stateIcon)
                         .font(.system(size: 12))
                         .foregroundStyle(stateColor)
+                        .symbolEffect(.pulse, options: .repeating, isActive: isLastMinute)
                     Text(viewModel.timeString)
                         .font(.system(size: 12, weight: .medium))
                         .monospacedDigit()
+                        .foregroundStyle(isLastMinute ? .red : .primary)
                 }
                 .shadow(color: .black.opacity(0.3), radius: 3)
                 .experimentalConfiguration(horizontalPadding: 10)
@@ -55,6 +57,10 @@ struct PomodoroWidget: View {
         case .work: return "brain.head.profile"
         case .shortBreak, .longBreak: return "cup.and.saucer.fill"
         }
+    }
+
+    private var isLastMinute: Bool {
+        viewModel.currentState == .work && viewModel.remainingSeconds > 0 && viewModel.remainingSeconds <= 60
     }
 
     private var stateColor: Color {
