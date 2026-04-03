@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1
+
+### Fixes
+- Fixed crash in Battery widget when `maxCapacity` is reported as zero (division by zero)
+- Fixed crash in Network widget when `ifa_addr` is NULL — affects `getNetworkBytes()` and `updateLocalIP()`
+- Fixed TOML config parsing: `[widgets]` section is now optional (configs without it no longer crash)
+- Fixed unhelpful "can't be read because it isn't in the correct format" error — parsing errors now show exact key path and reason
+- Removed dead config sections (`[popup.default.time]`, `[background]`) from default config template, replaced with documented `[experimental.foreground]` example
+
 ## 1.2
 
 ### New Widgets

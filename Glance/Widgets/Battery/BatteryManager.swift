@@ -90,9 +90,10 @@ final class BatteryManager: ObservableObject {
                     kIOPSPowerSourceStateKey as String] as? String
             {
                 let isAC = (powerSourceState == kIOPSACPowerValue)
+                let safeMaxCap = max(maxCap, 1)
 
                 DispatchQueue.main.async {
-                    self.batteryLevel = (currentCapacity * 100) / maxCap
+                    self.batteryLevel = (currentCapacity * 100) / safeMaxCap
                     self.isCharging = charging
                     self.isPluggedIn = isAC
                     self.powerSource = isAC ? "AC Power" : "Battery"

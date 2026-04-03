@@ -38,7 +38,8 @@ struct RootToml: Decodable {
         yabai = try container.decodeIfPresent(YabaiConfig.self, forKey: .yabai)
         aerospace = try container.decodeIfPresent(AerospaceConfig.self, forKey: .aerospace)
         experimental = try container.decodeIfPresent(ExperimentalConfig.self, forKey: .experimental)
-        widgets = try container.decode(WidgetsSection.self, forKey: .widgets)
+        widgets = try container.decodeIfPresent(WidgetsSection.self, forKey: .widgets)
+            ?? WidgetsSection(displayed: [], others: [:])
     }
 }
 
@@ -50,6 +51,12 @@ struct Config {
     }
 
     var appearance: AppearanceConfig {
+        // Wallpaper adaptive theme takes priority over preset
+        if WallpaperThemeManager.shared.isEnabled,
+           let wallpaperAppearance = WallpaperThemeManager.shared.derivedAppearance {
+            return wallpaperAppearance
+        }
+
         let base: Preset
         if let presetName = rootToml.preset,
            let preset = Preset(rawValue: presetName) {

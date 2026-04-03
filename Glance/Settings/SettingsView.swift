@@ -2,6 +2,7 @@ import SwiftUI
 
 enum SettingsTab: String, CaseIterable {
     case general = "General"
+    case wallpaper = "Wallpaper"
     case widgets = "Widgets"
     case spaces = "Spaces"
     case time = "Time"
@@ -10,6 +11,7 @@ enum SettingsTab: String, CaseIterable {
     var icon: String {
         switch self {
         case .general: return "gearshape"
+        case .wallpaper: return "photo.on.rectangle.angled"
         case .widgets: return "square.grid.2x2"
         case .spaces: return "rectangle.3.group"
         case .time: return "clock"
@@ -32,6 +34,8 @@ struct SettingsView: View {
             switch selectedTab {
             case .general:
                 GeneralSettingsTab()
+            case .wallpaper:
+                WallpaperSettingsTab()
             case .widgets:
                 WidgetsSettingsTab()
             case .spaces:

@@ -55,8 +55,9 @@ final class ConfigManager: ObservableObject {
                 self.config = Config(rootToml: rootToml)
             }
         } catch {
-            initError = "Error parsing TOML file: \(error.localizedDescription)"
-            logger.error("Error parsing TOML file at \(path): \(error.localizedDescription)", category: .config)
+            let detail = Self.describeDecodingError(error)
+            initError = "Error parsing TOML file: \(detail)"
+            logger.error("Error parsing TOML file at \(path): \(detail)", category: .config)
         }
     }
 
@@ -131,11 +132,10 @@ final class ConfigManager: ObservableObject {
             # longitude = 37.6173
             # name = "Moscow"
 
-            [popup.default.time]
-            view-variant = "box"
-            
-            [background]
-            enabled = true
+            # Bar height, formation, and other experimental settings:
+            # [experimental.foreground]
+            # height = 30              # float or "default" or "menu-bar"
+            # formation = "floating"   # full | floating | islands | pills
             """
         try defaultTOML.write(toFile: path, atomically: true, encoding: .utf8)
     }
@@ -444,6 +444,29 @@ final class ConfigManager: ObservableObject {
         }
 
         return newLines.joined(separator: "\n")
+    }
+
+    private static func describeDecodingError(_ error: Error) -> String {
+        switch error {
+        case let DecodingError.keyNotFound(key, context):
+            let path = Self.codingPath(context.codingPath)
+            return "Missing key '\(key.stringValue)' at \(path)"
+        case let DecodingError.typeMismatch(type, context):
+            let path = Self.codingPath(context.codingPath)
+            return "Type mismatch at \(path): expected \(type) — \(context.debugDescription)"
+        case let DecodingError.valueNotFound(type, context):
+            let path = Self.codingPath(context.codingPath)
+            return "Missing value at \(path): expected \(type)"
+        case let DecodingError.dataCorrupted(context):
+            let path = Self.codingPath(context.codingPath)
+            return "Invalid value at \(path): \(context.debugDescription)"
+        default:
+            return error.localizedDescription
+        }
+    }
+
+    private static func codingPath(_ path: [CodingKey]) -> String {
+        path.isEmpty ? "root" : path.map(\.stringValue).joined(separator: ".")
     }
 
     func globalWidgetConfig(for widgetId: String) -> ConfigData {

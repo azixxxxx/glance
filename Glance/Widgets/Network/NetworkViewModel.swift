@@ -256,8 +256,8 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
             let isUp = (flags & IFF_UP) != 0
             let isLoopback = (flags & IFF_LOOPBACK) != 0
 
-            if isUp && !isLoopback {
-                let addr = ptr.pointee.ifa_addr.pointee
+            if isUp && !isLoopback, let addrPtr = ptr.pointee.ifa_addr {
+                let addr = addrPtr.pointee
                 if addr.sa_family == UInt8(AF_LINK) {
                     if let data = ptr.pointee.ifa_data {
                         let networkData = data.assumingMemoryBound(to: if_data.self).pointee
@@ -288,18 +288,20 @@ final class NetworkStatusViewModel: NSObject, ObservableObject,
         var ptr = firstAddr
         while true {
             let interface = ptr.pointee
-            let addrFamily = interface.ifa_addr.pointee.sa_family
-            if addrFamily == UInt8(AF_INET) {
-                let name = String(cString: interface.ifa_name)
-                if name == "en0" || name == "en1" {
-                    var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                    if getnameinfo(
-                        interface.ifa_addr, socklen_t(interface.ifa_addr.pointee.sa_len),
-                        &hostname, socklen_t(hostname.count),
-                        nil, 0, NI_NUMERICHOST
-                    ) == 0 {
-                        ip = String(cString: hostname)
-                        break
+            if let addrPtr = interface.ifa_addr {
+                let addrFamily = addrPtr.pointee.sa_family
+                if addrFamily == UInt8(AF_INET) {
+                    let name = String(cString: interface.ifa_name)
+                    if name == "en0" || name == "en1" {
+                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                        if getnameinfo(
+                            addrPtr, socklen_t(addrPtr.pointee.sa_len),
+                            &hostname, socklen_t(hostname.count),
+                            nil, 0, NI_NUMERICHOST
+                        ) == 0 {
+                            ip = String(cString: hostname)
+                            break
+                        }
                     }
                 }
             }
