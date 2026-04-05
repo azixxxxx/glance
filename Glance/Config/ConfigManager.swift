@@ -254,6 +254,38 @@ final class ConfigManager: ObservableObject {
         return "\"\(value)\""
     }
 
+    /// Given a dotted key split into components, find the best matching table
+    /// header and remaining key in the TOML file. If the deepest table doesn't
+    /// exist but a parent table does, use the parent with a dotted key instead.
+    /// This prevents creating `[a.b.c]` when `[a.b]` already uses `c.key = ...`.
+    private func resolveTableAndKey(
+        components: [String], lines: [String]
+    ) -> (tablePath: String, actualKey: String) {
+        let defaultTable = components.dropLast().joined(separator: ".")
+        let defaultKey = components.last!
+
+        let existingTables = Set(lines.compactMap { line -> String? in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("[") && !trimmed.hasPrefix("[[")
+                  && trimmed.hasSuffix("]") && !trimmed.hasSuffix("]]") else { return nil }
+            return String(trimmed.dropFirst().dropLast())
+        })
+
+        if existingTables.contains(defaultTable) {
+            return (defaultTable, defaultKey)
+        }
+
+        for splitAt in stride(from: components.count - 2, through: 1, by: -1) {
+            let candidateTable = components[0..<splitAt].joined(separator: ".")
+            if existingTables.contains(candidateTable) {
+                let dottedKey = components[splitAt...].joined(separator: ".")
+                return (candidateTable, dottedKey)
+            }
+        }
+
+        return (defaultTable, defaultKey)
+    }
+
     /// Count unbalanced open brackets in a string (for multi-line array detection).
     private func unclosedBracketDepth(_ s: String) -> Int {
         var depth = 0
@@ -275,11 +307,12 @@ final class ConfigManager: ObservableObject {
                 return original
             }
 
-            let tablePath = components.dropLast().joined(separator: ".")
-            let actualKey = components.last!
+            let lines = original.components(separatedBy: "\n")
+            let resolved = resolveTableAndKey(components: components, lines: lines)
+            let tablePath = resolved.tablePath
+            let actualKey = resolved.actualKey
 
             let tableHeader = "[\(tablePath)]"
-            let lines = original.components(separatedBy: "\n")
             var newLines: [String] = []
             var insideTargetTable = false
             var updatedKey = false
@@ -395,8 +428,9 @@ final class ConfigManager: ObservableObject {
             let components = key.split(separator: ".").map(String.init)
             guard components.count >= 2 else { return original }
 
-            let tablePath = components.dropLast().joined(separator: ".")
-            let actualKey = components.last!
+            let resolved = resolveTableAndKey(components: components, lines: lines)
+            let tablePath = resolved.tablePath
+            let actualKey = resolved.actualKey
             let tableHeader = "[\(tablePath)]"
             let keyPattern = "^\(NSRegularExpression.escapedPattern(for: actualKey))\\s*="
 

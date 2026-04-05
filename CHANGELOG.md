@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+
+### Bug Fixes
+- Fixed config corruption when changing calendar settings via Settings UI — dotted keys under `[widgets.default.time]` (e.g. `calendar.show-events`) were duplicated as a separate `[widgets.default.time.calendar]` section, causing TOML parsing errors on next launch
+
 ## 1.3.0 — "The Bar That Feels Alive"
 
 ### Micro-Animations
