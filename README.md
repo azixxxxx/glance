@@ -236,6 +236,10 @@ All permissions are optional. The app works without them, you just lose the spec
 - macOS 14.6 (Sonoma) or later
 - Apple Silicon or Intel Mac
 
+## Credits
+
+Glance started as a fork of [Barik](https://github.com/mocki-toki/barik) by Simon Butenko. Since then, it has diverged into a heavily updated project with native macOS Spaces support, a Settings GUI, expanded widgets, presets, Sparkle updates, live config reload, and ongoing improvements.
+
 ## License
 
 [MIT](LICENSE)
