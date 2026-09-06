@@ -11,13 +11,14 @@ final class BatteryManager: ObservableObject {
     @Published var isCharging: Bool = false
     @Published var isPluggedIn: Bool = false
     @Published var cycleCount: Int = 0
-    @Published var healthPercent: Int = 100
+    @Published var healthPercent: Int? = nil
     @Published var temperature: Double = 0  // Celsius
     @Published var timeRemaining: Int? = nil  // minutes, nil if unknown
     @Published var powerSource: String = "Battery"
     @Published var maxCapacity: Int = 0
     @Published var designCapacity: Int = 0
     private var timer: Timer?
+    private var lastHealthRead = Date.distantPast
     private var wakeObserver: NSObjectProtocol?
     private let logger = AppLogger.shared
     private var hasLoggedMissingPowerSnapshot = false
@@ -116,6 +117,7 @@ final class BatteryManager: ObservableObject {
 
     /// Reads battery health data from IOKit SmartBattery.
     func updateBatteryHealth() {
+        refreshReportedHealth()
         let service = IOServiceGetMatchingService(
             kIOMainPortDefault,
             IOServiceMatching("AppleSmartBattery")
@@ -143,13 +145,13 @@ final class BatteryManager: ObservableObject {
                 self.cycleCount = cycles
             }
 
-            if let maxCap = dict["MaxCapacity"] as? Int,
+            // MaxCapacity may be normalized to 100 on Apple Silicon, not mAh.
+            if let maxCap = dict["NominalChargeCapacity"] as? Int ?? dict["AppleRawMaxCapacity"] as? Int,
                let designCap = dict["DesignCapacity"] as? Int,
                designCap > 0
             {
                 self.maxCapacity = maxCap
                 self.designCapacity = designCap
-                self.healthPercent = (maxCap * 100) / designCap
             }
 
             if let temp = dict["Temperature"] as? Int {
@@ -157,6 +159,49 @@ final class BatteryManager: ObservableObject {
                 self.temperature = Double(temp) / 100.0
             }
         }
+    }
+
+    /// Use the same reported maximum capacity as System Information. Raw charge
+    /// capacity ratios fluctuate and are not Apple's battery health percentage.
+    private func refreshReportedHealth() {
+        guard Date().timeIntervalSince(lastHealthRead) >= 300 else { return }
+        lastHealthRead = Date()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let process = Process()
+            let output = Pipe()
+            let completion = DispatchSemaphore(value: 0)
+            process.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
+            process.arguments = ["SPPowerDataType", "-json"]
+            process.standardOutput = output
+            process.standardError = FileHandle.nullDevice
+            process.terminationHandler = { _ in completion.signal() }
+            do {
+                try process.run()
+                guard completion.wait(timeout: .now() + 15) == .success else {
+                    process.terminate()
+                    return
+                }
+                guard process.terminationStatus == 0 else { return }
+                let data = output.fileHandleForReading.readDataToEndOfFile()
+                let health = Self.reportedHealth(from: data)
+                DispatchQueue.main.async { self?.healthPercent = health }
+            } catch {
+                // Unavailable health stays unknown instead of inventing 100%.
+            }
+        }
+    }
+
+    static func reportedHealth(from data: Data) -> Int? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let devices = root["SPPowerDataType"] as? [[String: Any]] else { return nil }
+        for device in devices {
+            guard let info = device["sppower_battery_health_info"] as? [String: Any],
+                  let raw = info["sppower_battery_health_maximum_capacity"] as? String,
+                  let value = Int(raw.replacingOccurrences(of: "%", with: "").trimmingCharacters(in: .whitespaces)),
+                  (0...100).contains(value) else { continue }
+            return value
+        }
+        return nil
     }
 
     /// Format time remaining as "H:MM"
