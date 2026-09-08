@@ -20,17 +20,15 @@ struct BatteryWidget: View {
                 BatteryBodyView(mask: false)
                     .opacity(showPercentage ? 0.3 : 0.4)
                 BatteryBodyView(mask: true)
-                    .clipShape(
-                        Rectangle().path(
-                            in: CGRect(
-                                x: showPercentage ? 0 : 2,
-                                y: 0,
-                                width: 30 * Int(level)
-                                    / (showPercentage ? 110 : 130),
-                                height: 10
-                            )
-                        )
-                    )
+                    .mask(alignment: .leading) {
+                        GeometryReader { geometry in
+                            Rectangle()
+                                .frame(
+                                    width: geometry.size.width * CGFloat(min(max(level, 0), 100)) / 100,
+                                    height: geometry.size.height
+                                )
+                        }
+                    }
                     .foregroundStyle(batteryColor)
                 BatteryText(
                     level: level, isCharging: isCharging,

@@ -52,7 +52,7 @@ struct BatteryPopup: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 detailRow("Status", batteryStatus, color: batteryColor)
-                detailRow("Health", "\(batteryManager.healthPercent)%", color: healthColor)
+                detailRow("Health", batteryManager.healthPercent.map { "\($0)%" } ?? "Unavailable", color: healthColor)
                 detailRow("Cycles", "\(batteryManager.cycleCount)")
                 if batteryManager.temperature > 0 {
                     detailRow("Temperature", String(format: "%.1f°C", batteryManager.temperature))
@@ -106,9 +106,10 @@ struct BatteryPopup: View {
     }
 
     private var healthColor: Color {
-        if batteryManager.healthPercent >= 80 {
+        guard let health = batteryManager.healthPercent else { return .secondary }
+        if health >= 80 {
             return .green
-        } else if batteryManager.healthPercent >= 50 {
+        } else if health >= 50 {
             return .yellow
         } else {
             return .red
